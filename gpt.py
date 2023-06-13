@@ -56,8 +56,7 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
 
     # Load and preprocess the dataset
-    train_dataset = load_dataset("/content/questions.csv", tokenizer)
-    valid_dataset = load_dataset("/content/valid.csv", tokenizer)
+    train_dataset = load_dataset("/path/to/bhagavatgita_dataset.csv", tokenizer)
 
     # Configure and train the model using the Trainer class
     training_args = TrainingArguments(
@@ -83,19 +82,22 @@ def main():
         args=training_args,
         data_collator=data_collator,
         train_dataset=train_dataset,
-        eval_dataset=valid_dataset,
     )
 
     trainer.train()
     # Save the fine-tuned model
-    model.save_pretrained("fine_tuned_BhagavatGita_gpt2")
+    model.save_pretrained("fine_tuned_bhagavatgita_gpt2")
 
     # Load the fine-tuned model
-    fine_tuned_model = GPT2LMHeadModel.from_pretrained("fine_tuned_BhagavatGita_gpt2")
+    fine_tuned_model = GPT2LMHeadModel.from_pretrained("fine_tuned_bhagavatgita_gpt2")
 
     st.title("GPT-2 Question Answering")
 
     question = st.text_input("Enter your question:")
     if st.button("Ask"):
         if question:
-            answer = ask_question(question, fine_tuned_model)
+            answer = ask_question(question, fine_tuned_model, tokenizer)
+            st.write("Answer:", answer)
+
+if __name__ == "__main__":
+    main()
