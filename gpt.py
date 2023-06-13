@@ -98,4 +98,4 @@ def main():
     question = st.text_input("Enter your question:")
     if st.button("Ask"):
         if question:
-            answer = ask_question(question, fine_tuned_model,
+            answer = ask_question(question, fine_tuned_model)
