@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
+from transformers import DataCollatorForLanguageModeling
+from transformers import Trainer, TrainingArguments
+from datasets import Dataset
 
 def process_csv(file_path):
     df = pd.read_csv(file_path)
@@ -18,7 +21,8 @@ def load_dataset(file_path, tokenizer):
     tokenized_dataset = tokenizer(qa_pairs, truncation=True,
                                   padding='max_length', max_length=128,
                                   return_tensors="pt")
-    return tokenized_dataset
+    dataset = Dataset.from_dict(tokenized_dataset)
+    return dataset
 
 def ask_question(question, model, tokenizer, max_length=128, num_return_sequences=1):
     prompt = f"Question: {question}\nAnswer:"
@@ -44,8 +48,6 @@ def ask_question(question, model, tokenizer, max_length=128, num_return_sequence
     return answer
 
 def main():
-    st.title("GPT-2 Question Answering")
-
     # Load the pre-trained GPT-2 model and tokenizer
     model_name = "gpt2"
     tokenizer = GPT2TokenizerFast.from_pretrained(model_name)
@@ -57,26 +59,43 @@ def main():
     train_dataset = load_dataset("/content/questions.csv", tokenizer)
     valid_dataset = load_dataset("/content/valid.csv", tokenizer)
 
-    # Train the model (if needed)
-    if len(train_dataset) > 0:
-        model.train()
-        model.resize_token_embeddings(len(tokenizer))
+    # Configure and train the model using the Trainer class
+    training_args = TrainingArguments(
+        output_dir="output",
+        overwrite_output_dir=True,
+        num_train_epochs=3,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
+        eval_steps=100,
+        save_steps=100,
+        warmup_steps=0,
+        logging_dir="logs",
+        evaluation_strategy="steps",
+        save_total_limit=3,
+    )
 
-    # Fine-tune the model (if needed)
-    if len(valid_dataset) > 0:
-        model.eval()
+    data_collator = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer, mlm=False,
+    )
 
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        data_collator=data_collator,
+        train_dataset=train_dataset,
+        eval_dataset=valid_dataset,
+    )
+
+    trainer.train()
     # Save the fine-tuned model
     model.save_pretrained("fine_tuned_BhagavatGita_gpt2")
 
     # Load the fine-tuned model
     fine_tuned_model = GPT2LMHeadModel.from_pretrained("fine_tuned_BhagavatGita_gpt2")
 
+    st.title("GPT-2 Question Answering")
+
     question = st.text_input("Enter your question:")
     if st.button("Ask"):
         if question:
-            answer = ask_question(question, fine_tuned_model, tokenizer)
-            st.text_area("Answer:", answer)
-
-if __name__ == "__main__":
-    main()
+            answer = ask_question(question, fine_tuned_model,
